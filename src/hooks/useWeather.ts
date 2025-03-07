@@ -24,15 +24,17 @@ const weatherSchema = object({
 });
 
 export type Weather = InferOutput<typeof weatherSchema>;
+
+const initialState: Weather = {
+  name: "",
+  main: {
+    temp: 0,
+    temp_min: 0,
+    temp_max: 0,
+  },
+};
 export default function useWeather() {
-  const [weather, setWeather] = useState<Weather>({
-    name: "",
-    main: {
-      temp: 0,
-      temp_min: 0,
-      temp_max: 0,
-    },
-  });
+  const [weather, setWeather] = useState<Weather>(initialState);
   //   function isWeatherResponse(weather: unknown): weather is Weather {
   //     return (
   //       Boolean(weather) &&
@@ -43,13 +45,22 @@ export default function useWeather() {
   //       typeof (weather as Weather).main.temp_max === "number"
   //     );
   //   }
+
+  const [loading, setLoading] = useState(false);
+  const [notFound, setNotFound] = useState(false);
   const fetchWeather = async (search: SearchType) => {
     try {
+      setLoading(true);
+      setWeather(initialState);
       const appId = import.meta.env.VITE_API_KEY;
       const geoUrl = `http://api.openweathermap.org/geo/1.0/direct?q=${search.city},${search.country}&appid=${appId}`;
 
       const { data } = await axios(geoUrl);
 
+      if(data.length === 0) {
+        setNotFound(true);
+        throw new Error("Ciudad no encontrada");
+      }
       const { lat, lon } = data[0];
 
       const weatherUrl = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${appId}`;
@@ -82,6 +93,8 @@ export default function useWeather() {
       setWeather(result);
     } catch (error) {
       console.log(error);
+    } finally {
+      setLoading(false);
     }
   };
   const hasWeatherData = useMemo(() => weather.name, [weather]);
@@ -89,5 +102,7 @@ export default function useWeather() {
     weather,
     fetchWeather,
     hasWeatherData,
+    loading,
+    notFound
   };
 }
